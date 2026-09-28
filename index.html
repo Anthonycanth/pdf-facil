@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#111827">
+  <meta name="description" content="PDF Fácil - leitor de PDF simples e gratuito.">
+  <title>PDF Fácil</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f3f4f6;color:#111827}
+    header{background:#111827;color:white;padding:16px 20px;display:flex;align-items:center;justify-content:space-between}
+    .brand{font-size:21px;font-weight:700}.brand span{color:#facc15}
+    main{max-width:900px;margin:0 auto;padding:28px 16px}
+    .hero{text-align:center;padding:30px 10px}
+    h1{font-size:32px;margin:0 0 10px}.hero p{color:#6b7280;margin:0 0 25px}
+    .drop{background:white;border:2px dashed #cbd5e1;border-radius:18px;padding:45px 20px;text-align:center;transition:.2s}
+    .drop.drag{border-color:#111827;background:#f8fafc}
+    .pdf-icon{font-size:50px;margin-bottom:10px}
+    button,.choose{display:inline-block;border:0;border-radius:10px;padding:13px 20px;background:#111827;color:white;font-weight:700;cursor:pointer}
+    .choose:hover,button:hover{opacity:.9}
+    input{display:none}
+    .reader{display:none;margin-top:22px;background:white;border-radius:16px;overflow:hidden;box-shadow:0 5px 20px #0001}
+    .toolbar{padding:12px;display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:#111827;color:white}
+    .toolbar button{padding:9px 12px;background:#374151}
+    .file-name{font-weight:700;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    iframe{width:100%;height:70vh;border:0;background:#525252}
+    .note{font-size:13px;color:#6b7280;text-align:center;margin-top:18px}
+    footer{text-align:center;color:#9ca3af;font-size:13px;padding:20px}
+    @media(max-width:600px){h1{font-size:27px}.drop{padding:35px 14px}.file-name{max-width:100%;width:100%}iframe{height:65vh}}
+  </style>
+</head>
+<body>
+<header>
+  <div class="brand">PDF <span>Fácil</span></div>
+  <button id="installBtn" style="display:none">📱 Instalar</button>
+</header>
+
+<main>
+  <section class="hero">
+    <h1>Abra seu PDF gratuitamente</h1>
+    <p>Selecione um arquivo e visualize-o diretamente no navegador.</p>
+
+    <div class="drop" id="drop">
+      <div class="pdf-icon">📄</div>
+      <h2>Seu PDF aqui</h2>
+      <p>Escolha um arquivo ou arraste-o para esta área.</p>
+      <label class="choose" for="pdfInput">Escolher PDF</label>
+      <input id="pdfInput" type="file" accept="application/pdf,.pdf">
+    </div>
+
+    <div class="reader" id="reader">
+      <div class="toolbar">
+        <div class="file-name" id="fileName">arquivo.pdf</div>
+        <div>
+          <button id="newBtn">Novo PDF</button>
+          <button id="openBtn">Abrir em nova aba</button>
+        </div>
+      </div>
+      <iframe id="viewer" title="Visualizador de PDF"></iframe>
+    </div>
+
+    <div class="note">Os arquivos são abertos no seu navegador e não são enviados para um servidor por este aplicativo.</div>
+  </section>
+</main>
+
+<footer>PDF Fácil • versão inicial</footer>
+
+<script>
+const input = document.getElementById('pdfInput');
+const drop = document.getElementById('drop');
+const reader = document.getElementById('reader');
+const viewer = document.getElementById('viewer');
+const fileName = document.getElementById('fileName');
+const newBtn = document.getElementById('newBtn');
+const openBtn = document.getElementById('openBtn');
+const installBtn = document.getElementById('installBtn');
+let currentUrl = null;
+let deferredPrompt = null;
+
+function openFile(file){
+  if(!file || file.type !== 'application/pdf') {
+    alert('Selecione um arquivo PDF.');
+    return;
+  }
+  if(currentUrl) URL.revokeObjectURL(currentUrl);
+  currentUrl = URL.createObjectURL(file);
+  viewer.src = currentUrl;
+  fileName.textContent = file.name;
+  drop.style.display = 'none';
+  reader.style.display = 'block';
+}
+
+input.addEventListener('change', e => openFile(e.target.files[0]));
+
+['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.add('drag');
+}));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.remove('drag');
+}));
+drop.addEventListener('drop', e => openFile(e.dataTransfer.files[0]));
+
+newBtn.addEventListener('click', () => {
+  reader.style.display='none'; drop.style.display='block'; input.value='';
+  if(currentUrl) { URL.revokeObjectURL(currentUrl); currentUrl=null; }
+});
+openBtn.addEventListener('click', () => {
+  if(currentUrl) window.open(currentUrl, '_blank');
+});
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installBtn.style.display='block';
+});
+installBtn.addEventListener('click', async () => {
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  installBtn.style.display='none';
+});
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(console.error));
+}
+</script>
+</body>
+</html>
